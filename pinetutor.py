@@ -6,7 +6,7 @@ import requests
 import chromadb
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-textra = textract.process("/content/demo.pdf").decode('utf-8').strip()
+textra = textract.process("pinecone.pdf").decode('utf-8').strip()
 
 text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size = 300,
