@@ -4,7 +4,7 @@ import chromadb
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 import PyPDF2
-
+default_client = replicate.Client()
 # Open the PDF file
 pdf_file_path = 'pinecone.pdf'
 pdf_file = open(pdf_file_path, 'rb')
