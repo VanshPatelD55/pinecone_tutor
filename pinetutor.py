@@ -1,12 +1,8 @@
 import streamlit as st
 import replicate
-import textract
 import chromadb
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import json
-with open('config.json') as f:
-        config_data = json.load(f)
-
+import os
 import PyPDF2
 
 # Open the PDF file
@@ -82,7 +78,7 @@ with st.sidebar:
     top_p = st.sidebar.slider('top_p', min_value=0.01, max_value=1.0, value=0.9, step=0.01)
     max_length = st.sidebar.slider('max_length', min_value=64, max_value=4096, value=512, step=8)
     
-replicate_api = config_data['REPLICATE_API_TOKEN']
+replicate_api = os.environ['REPLICATE_API_TOKEN']
 
 # Store LLM generated responses
 if "messages" not in st.session_state.keys():
