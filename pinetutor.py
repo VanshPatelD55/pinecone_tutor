@@ -1,12 +1,35 @@
 import streamlit as st
 import replicate
-import os
 import textract
-import requests
 import chromadb
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import json
+with open('config.json') as f:
+        config_data = json.load(f)
 
-textra = textract.process("pinecone.pdf").decode('utf-8').strip()
+import PyPDF2
+
+# Open the PDF file
+pdf_file_path = 'pinecone.pdf'
+pdf_file = open(pdf_file_path, 'rb')
+
+# Create a PDF reader object
+pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+# Initialize a string to store extracted text
+textra = ''
+
+# Loop through all the pages and extract text
+for page_num in range(len(pdf_reader.pages)):
+    page = pdf_reader.pages[page_num]
+    textra += page.extract_text()
+
+# Close the PDF file
+pdf_file.close()
+
+# Print the extracted text
+
+
 
 text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size = 300,
@@ -26,7 +49,7 @@ collection.add(
 
 def context(prompt):
   results = collection.query(
-      query_texts= query,
+      query_texts= prompt,
       n_results=5,
   )
   return results
@@ -59,7 +82,7 @@ with st.sidebar:
     top_p = st.sidebar.slider('top_p', min_value=0.01, max_value=1.0, value=0.9, step=0.01)
     max_length = st.sidebar.slider('max_length', min_value=64, max_value=4096, value=512, step=8)
     
-os.environ['REPLICATE_API_TOKEN'] = replicate_api
+replicate_api = config_data['REPLICATE_API_TOKEN']
 
 # Store LLM generated responses
 if "messages" not in st.session_state.keys():
