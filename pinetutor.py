@@ -40,7 +40,7 @@ texts = text_splitter.split_text(textra)
 
 chroma_client = chromadb.Client()
 
-collection = chroma_client.create_collection(name="demo1")
+collection = chroma_client.create_collection(name="demo")
 
 collection.add(
     documents=texts,
