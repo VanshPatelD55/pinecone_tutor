@@ -2,68 +2,24 @@ import streamlit as st
 import replicate
 import chromadb
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import json
 import os
+
+global collection
+with open('config.json') as f:
+        config_data = json.load(f)
+
 import PyPDF2
-default_client = replicate.Client()
+
 # Open the PDF file
-pdf_file_path = 'pinecone.pdf'
-pdf_file = open(pdf_file_path, 'rb')
-
-# Create a PDF reader object
-pdf_reader = PyPDF2.PdfReader(pdf_file)
-
-# Initialize a string to store extracted text
-textra = ''
-
-# Loop through all the pages and extract text
-for page_num in range(len(pdf_reader.pages)):
-    page = pdf_reader.pages[page_num]
-    textra += page.extract_text()
-
-# Close the PDF file
-pdf_file.close()
-
-# Print the extracted text
-
-
-
-text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size = 300,
-                chunk_overlap = 30
-                )
-
-texts = text_splitter.split_text(textra)
-
-chroma_client = chromadb.Client()
-
-collection = chroma_client.create_collection(name="demo")
-
-collection.add(
-    documents=texts,
-    ids=["id" + str(i) for i in range(1, len(texts) + 1)]
-)
-
-def context(prompt):
-  results = collection.query(
-      query_texts= prompt,
-      n_results=5,
-  )
-  return results
+texts = ""
 # App title
 st.set_page_config(page_title="🦙💬 Llama 2 Chatbot")
+
 
 # Replicate Credentials
 with st.sidebar:
     st.title('🦙💬 Llama 2 Chatbot')
-    if 'REPLICATE_API_TOKEN' in st.secrets:
-        replicate_api = st.secrets['REPLICATE_API_TOKEN']
-    else:
-        replicate_api = st.text_input('Enter Replicate API token:', type='password')
-        if not (replicate_api.startswith('r8_') and len(replicate_api)==40):
-            st.warning('Please enter your credentials!', icon='⚠️')
-        else:
-            st.success('Proceed to entering your prompt message!', icon='👉')
-
     # Refactored from <https://github.com/a16z-infra/llama2-chatbot>
     st.subheader('Models and parameters')
     selected_model = st.sidebar.selectbox('Choose a Llama2 model', ['Llama2-7B', 'Llama2-13B', 'Llama2-70B'], key='selected_model')
@@ -77,6 +33,7 @@ with st.sidebar:
     temperature = st.sidebar.slider('temperature', min_value=0.01, max_value=5.0, value=0.1, step=0.01)
     top_p = st.sidebar.slider('top_p', min_value=0.01, max_value=1.0, value=0.9, step=0.01)
     max_length = st.sidebar.slider('max_length', min_value=64, max_value=4096, value=512, step=8)
+
     
 replicate_api = os.environ['REPLICATE_API_TOKEN']
 
@@ -107,16 +64,62 @@ def generate_llama2_response(prompt_input):
     return output
 
 # User-provided prompt
-if prompt == st.chat_input(disabled=not replicate_api):
+if prompt := st.chat_input(disabled=not replicate_api):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
+
+# Initialize the session state if it doesn't exist
+if 'has_run' not in st.session_state:
+    st.session_state.has_run = False
+
+# Check if the code has not run yet
+if not st.session_state.has_run:
+    pdf_file_path = 'pinecone.pdf'
+    pdf_file = open(pdf_file_path, 'rb')
+
+    pdf_reader = PyPDF2.PdfReader(pdf_file)
+    textra = ''
+    for page_num in range(len(pdf_reader.pages)):
+        page = pdf_reader.pages[page_num]
+        textra += page.extract_text()
+    pdf_file.close()
+
+    text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size = 300,
+                chunk_overlap = 30
+                )
+    texts = text_splitter.split_text(textra)
+
+    st.session_state.has_run = True
+
+
+chroma_client = chromadb.Client()
+
+    
+collection = chroma_client.get_or_create_collection(name="demo")
+# Initialize the session state if it doesn't exist
+if 'has_run' not in st.session_state:
+    st.session_state.has_run = False
+
+# Check if the code has not run yet
+if not st.session_state.has_run:
+       collection.add(
+        documents=texts,
+        ids=["id" + str(i) for i in range(1, len(texts) + 1)]
+    )
+    
+st.session_state.has_run = True
+ 
+
 
 # Generate a new response if last message is not from assistant
 if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            res_context = context(prompt)['documents'][0]
+            res_context = collection.query(
+                query_texts= prompt,
+                n_results=5)
             if(res_context=="") :
               response = generate_llama2_response(prompt)
             else:
